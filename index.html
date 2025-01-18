@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сайт для тебя</title>
+    <style>
+        /* Основной стиль */
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            padding: 10px;
+            margin: 0;
+            background: linear-gradient(to bottom right, #f8c8dc, #ffdde1);
+            color: #4e4e4e;
+        }
+
+        h1 {
+            font-size: 2em;
+            color: #ff62a1;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #ff62a1;
+            border: none;
+            color: white;
+            border-radius: 10px;
+            transition: background-color 0.3s;
+            margin: 15px;
+        }
+
+        button:hover {
+            background-color: #ff387e;
+        }
+
+        #gameArea {
+            position: relative;
+            width: 100%;
+            height: 300px; /* Подходит для мобильных экранов */
+            background-color: #fff;
+            border-radius: 10px;
+            border: 2px solid #ff62a1;
+            margin-top: 20px;
+            overflow: hidden;
+            display: none;
+        }
+
+        #player {
+            position: absolute;
+            bottom: 0;
+            left: 50px;
+            width: 80px;  /* Уменьшаем размер игрока для мобильных устройств */
+            height: 80px;
+            transition: bottom 0.3s;
+        }
+
+        .obstacle {
+            position: absolute;
+            bottom: 0;
+            width: 50px;
+            height: 50px;
+            background-image: url('2.png'); /* Используем изображение для препятствий */
+            background-size: cover;
+            animation: moveObstacle 5s linear infinite;
+        }
+
+        @keyframes moveObstacle {
+            0% {
+                left: 100%;
+            }
+            100% {
+                left: -10%;
+            }
+        }
+
+        #endGame {
+            display: none;
+        }
+
+        .scoreboard {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #4e4e4e;
+        }
+
+        /* Для мобильных устройств */
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            button {
+                font-size: 16px;
+                padding: 10px 18px;
+            }
+
+            #gameArea {
+                height: 250px; /* Снижаем высоту для маленьких экранов */
+            }
+
+            #player {
+                width: 70px;
+                height: 70px;
+            }
+
+            .scoreboard {
+                font-size: 1.1em;
+            }
+
+            /* Ускоряем анимацию для мобильных устройств (снижая длительность анимации) */
+            .obstacle {
+                animation-duration: 3s; /* Ускоряем анимацию */
+            }
+
+            /* Увеличиваем интервал между появлением препятствий */
+            .obstacle-container {
+                animation-duration: 3s;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>❤️Привет, мой любимый Лисёночек❤️</h1>
+        <p>Тут я для тебя создал прям супер крутое, такого я никогда не делал ещё ахахахах. Надеюсь тебе понравится сильно.</p>
+        <button id="playMusicBtn">Включить музыку</button>
+        <button id="startGameBtn">Начать игру</button>
+
+        <div class="scoreboard">
+            <p>Счёт: <span id="score">0</span></p>
+            <p>Рекорд: <span id="highscore">0</span></p>
+        </div>
+
+        <div id="gameArea">
+            <img id="player" src="player.png" alt="Игрок">
+            <div id="obstacles"></div>
+        </div>
+
+        <div id="endGame">
+            <p>Финиш!</p>
+            <button id="restartBtn">Заново</button>
+        </div>
+    </div>
+
+    <script>
+        const music = new Audio('music.mp3');
+        let musicPlaying = false;
+        const playMusicBtn = document.getElementById('playMusicBtn');
+        const startGameBtn = document.getElementById('startGameBtn');
+        const gameArea = document.getElementById('gameArea');
+        const player = document.getElementById('player');
+        const obstaclesContainer = document.getElementById('obstacles');
+        const endGame = document.getElementById('endGame');
+        const restartBtn = document.getElementById('restartBtn');
+        const scoreElement = document.getElementById('score');
+        const highscoreElement = document.getElementById('highscore');
+
+        let gameRunning = false;
+        let obstacles = [];
+        let obstacleInterval;
+        let score = 0;
+        let highscore = localStorage.getItem('highscore') || 0;
+
+        highscoreElement.textContent = highscore;
+
+        // Включение/выключение музыки
+        playMusicBtn.addEventListener('click', () => {
+            if (!musicPlaying) {
+                music.play();
+                musicPlaying = true;
+            } else {
+                music.pause();
+                musicPlaying = false;
+            }
+        });
+
+        // Начало игры
+        startGameBtn.addEventListener('click', startGame);
+
+        function startGame() {
+            gameRunning = true;
+            score = 0;
+            scoreElement.textContent = score;
+            gameArea.style.display = 'block';
+            startGameBtn.style.display = 'none';
+            endGame.style.display = 'none';
+            obstaclesContainer.innerHTML = '';
+            player.style.left = '50px';
+            generateObstacles();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Генерация препятствий
+        function generateObstacles() {
+            obstacleInterval = setInterval(() => {
+                if (gameRunning) {
+                    const obstacle = document.createElement('div');
+                    obstacle.classList.add('obstacle');
+                    obstaclesContainer.appendChild(obstacle);
+                    obstacles.push({ element: obstacle, passed: false });
+
+                    obstacle.addEventListener('animationend', () => {
+                        obstacle.remove();
+                        obstacles = obstacles.filter(item => item.element !== obstacle);
+                    });
+                }
+            }, 4000); // Увеличиваем интервал для мобильных устройств
+        }
+
+        // Проверка на столкновение
+        function checkCollisions() {
+            obstacles.forEach(obstacle => {
+                const obstacleRect = obstacle.element.getBoundingClientRect();
+                const playerRect = player.getBoundingClientRect();
+
+                const isCollision = !(obstacleRect.right < playerRect.left ||
+                    obstacleRect.left > playerRect.right ||
+                    obstacleRect.bottom < playerRect.top ||
+                    obstacleRect.top > playerRect.bottom);
+
+                if (isCollision && gameRunning) {
+                    endGameDisplay("Попробуй заново!");
+                }
+            });
+        }
+
+        // Реализация прыжка при касании экрана или нажатии пробела
+        function handleJump() {
+            // Для мобильных устройств
+            gameArea.addEventListener('touchstart', jump);
+            
+            // Для десктопа (нажатие пробела)
+            document.addEventListener('keydown', (event) => {
+                if (event.key === ' ' && gameRunning) {
+                    jump();
+                }
+            });
+        }
+
+        // Функция прыжка
+        function jump() {
+            if (gameRunning) {
+                player.style.bottom = '250px';  // Увеличиваем высоту прыжка
+                setTimeout(() => {
+                    player.style.bottom = '0'; // Возвращаем игрока на исходную позицию
+                }, 500); // Прыжок длится 500мс
+            }
+        }
+
+        // Завершение игры
+        function endGameDisplay(message) {
+            gameRunning = false;
+            gameArea.style.display = 'none';
+            endGame.style.display = 'block';
+            endGame.querySelector('p').textContent = message;
+            clearInterval(obstacleInterval);
+
+            if (score > highscore) {
+                highscore = score;
+                highscoreElement.textContent = highscore;
+                localStorage.setItem('highscore', highscore);
+            }
+        }
+
+        // Повторить игру
+        restartBtn.addEventListener('click', () => {
+            endGame.style.display = 'none';
+            obstacles.forEach(obstacle => obstacle.element.remove());
+            obstacles = [];
+            startGame();
+        });
+
+        // Запуск анимации проверки на столкновение
+        function gameLoop() {
+            if (gameRunning) {
+                checkCollisions();
+
+                obstacles.forEach(obstacle => {
+                    const obstacleRect = obstacle.element.getBoundingClientRect();
+                    if (obstacleRect.right < 0 && !obstacle.passed) {
+                        obstacle.passed = true;
+                        score++;
+                        scoreElement.textContent = score;
+                    }
+                });
+
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // Инициализация игры
+        handleJump();
+    </script>
+
+</body>
+</html>
